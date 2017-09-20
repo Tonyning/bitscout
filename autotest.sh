@@ -104,11 +104,11 @@ echo -e "e\nenter\ndown\ndown\nend\nleft\nleft\nleft\nleft\nleft" | vm_keyboard_
 echo -n " console=tty0 console=ttyS0,115200" | vm_keyboard_typetext
 echo -e "ctrl-x" | vm_keyboard_pushkeys
 
-dprint "Attaching to tmux session.."
 dprint "To view the VM console use command:\n$ remote-viewer spice://localhost:2001"
 if [ $VISIBLE -eq 1 ]
 then
  sleep 2
+ dprint "Attaching to tmux session.."
  tmux attach -t $TMSESSION
 else
  dprint "Waiting for autotest completion..\n(Hint: set VISIBLE=1 in $0 to see VM interaction)."

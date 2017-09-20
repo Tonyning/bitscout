@@ -1,7 +1,7 @@
 #!/usr/bin/expect
 
 log_file ./autotest.log
-set timeout 60
+set timeout 300
 send_log "\nConnecting to bitscout serial socket..\n"
 spawn socat STDIO,echo=1 UNIX-CONNECT:./bitscout.serial.sock
 set socatpid [exp_pid]
