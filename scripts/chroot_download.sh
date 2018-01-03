@@ -32,6 +32,7 @@ run_debootstrap_supervised_fast()
   ( cd "$DEBDIR" && "$BASEDIR/$APTFAST" -o "APT::Architecture=$BASEARCHITECTURE" -o "Acquire::Languages=$LANG" download $DEBS ) &&
 
   statusprint "Scanning/indexing downloaded packages.." &&
+  install_required_package dpkg-dev &&
   ( cd "./debootstrap.cache" && dpkg-scanpackages . /dev/null > "dists/$BASERELEASE/main/binary-$BASEARCHITECTURE/Packages" 2>/dev/null ) &&
   sed -i 's/^Priority: optional.*/Priority: important/g' "$DEBDIR/Packages" &&
 
