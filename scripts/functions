@@ -29,12 +29,55 @@ statusprint()
   fi
 }
 
+create_dir_safe()
+{
+  [ ! -d "$1" ] && mkdir -p "$1" 2>&-
+  return 0
+}
+
+chroot_mount_cache()
+{
+  CHROOTPATH="$1"
+  if [ -z "$CHROOTPATH" ]
+  then
+    statusprint "Failed to mount cache dirs: chroot path cannot be empty!" &&
+    return 1
+  fi
+  statusprint "Mounting chroot cache directories into \"$CHROOTPATH\".." &&
+ 
+  statusprint "Mounting ./cache/apt.cache.." &&
+  create_dir_safe ./cache/apt.cache &&
+  create_dir_safe $CHROOTPATH/var/cache/apt/archives &&
+  sudo mount --bind $PWD/cache/apt.cache $CHROOTPATH/var/cache/apt/archives &&
+
+  statusprint "Mounting ./cache/apt.lists.." &&
+  create_dir_safe ./cache/apt.lists &&
+  create_dir_safe $CHROOTPATH/var/lib/apt/lists &&
+  sudo mount --bind $PWD/cache/apt.lists $CHROOTPATH/var/lib/apt/lists && return 0 || return 1
+
+}
+
+chroot_unmount_cache()
+{
+  CHROOTPATH="$1"
+  if [ -z "$CHROOTPATH" ]
+  then
+    statusprint "Failed to unmount cache dirs: chroot path cannot be empty!" &&
+    return 1
+  fi
+
+  statusprint "Unmounting chroot cache directories inside \"$CHROOTPATH\".."
+  sudo umount -f "$CHROOTPATH/var/cache/apt/archives" "$CHROOTPATH/var/lib/apt/lists" 2>&-
+  return 0
+}
+
 chroot_unmount_fs()
 {
   CHROOTPATH="$1"
   statusprint "Unmounting active chroot filesystems inside \"$CHROOTPATH\".."
   mount | grep -q "$CHROOTPATH/sys/kernel/security" && sudo umount -f "$CHROOTPATH/sys/kernel/security"
-  sudo umount -f "$CHROOTPATH/dev/pts" "$CHROOTPATH/sys" "$CHROOTPATH/proc" "$CHROOTPATH/var/cache/apt/archives" 2>&-
+  sudo umount -f "$CHROOTPATH/dev/pts" "$CHROOTPATH/sys" "$CHROOTPATH/proc" 2>&-
+  chroot_unmount_cache "$1"
   return 0
 }
 
@@ -48,19 +91,18 @@ chroot_exec()
   CMD="$2"
   if [ ! -d "$DIR/dev" ]
   then
-    sudo mkdir -p "$DIR/dev"
-    cd "$DIR/dev"
-    sudo MAKEDEV std
-    cd ../../
+    sudo mkdir -p "$DIR/dev" &&
+    cd "$DIR/dev" &&
+    sudo MAKEDEV std &&
+    cd ../../ 
   fi
 
-  [ ! -d "./apt.cache" ] && mkdir ./apt.cache
-  sudo mount --bind $PWD/apt.cache $PWD/$DIR/var/cache/apt/archives
-  trap "chroot_unmount_fs \"$PWD/$DIR\"" SIGINT SIGKILL SIGTERM
+  chroot_mount_cache "$PWD/$DIR" &&
+  trap "chroot_unmount_fs \"$PWD/$DIR\"" SIGINT SIGKILL SIGTERM &&
 
-  sudo chmod o+rwX "$DIR/tmp"
-  statusprint "Executing command in chroot ($DIR):"
-  statusprint "$CMD"
+  sudo chmod o+rwX "$DIR/tmp" &&
+  statusprint "Executing command in chroot ($DIR):" &&
+  statusprint "$CMD" &&
   echo "#!/bin/bash
   export LANG=$LANG
   mkdir -p /dev/pts 2>&-
@@ -73,14 +115,15 @@ chroot_exec()
   dpkg-divert --local --rename --add /sbin/initctl >/dev/null
   ln -s /bin/true /sbin/initctl 2>&-
   rm /tmp/chroot_session.sh
+  aria2c(){ /usr/bin/aria2c --console-log-level=warn \"\$@\";}; export -f aria2c
   $CMD
   CMDRETURN=\$?
   rm /var/lib/dbus/machine-id 2>&-
   rm /sbin/initctl
   dpkg-divert --rename --remove /sbin/initctl >/dev/null
-  exit \$CMDRETURN " > "./$DIR/tmp/chroot_session.sh"
+  exit \$CMDRETURN " > "./$DIR/tmp/chroot_session.sh" &&
 
-  chmod +x "./$DIR/tmp/chroot_session.sh"
+  chmod +x "./$DIR/tmp/chroot_session.sh" &&
   if sudo chroot "$DIR" "/tmp/chroot_session.sh"
   then
       statusprint "Info: command in chroot succeeded."
@@ -88,7 +131,9 @@ chroot_exec()
   else
     statusprint "Warning: command in chroot failed."
     chroot_unmount_fs "$PWD/$DIR" && return 1
-  fi
+  fi &&
+
+  return 0
 }
 
 unpackinitrd()

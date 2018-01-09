@@ -31,8 +31,6 @@ then
   statusprint "Creating development rootfs.."  
   statusprint "Installing build tools and downloading kernel source.."
   chroot_exec chroot.devel "export DEBIAN_FRONTEND=noninteractive
-  aria2c(){ /usr/bin/aria2c --console-log-level=warn \"\$@\";}; export -f aria2c
-  apt-fast --yes update
   KERNELPKG=\$(apt-cache show --no-all-versions linux-image-generic| grep '^Depends:' | sed 's/^Depends: \\([^, ]*\\)[, ].*/\\1/')
   apt-fast --yes install build-essential git bsdtar &&
   mkdir /opt/kernel 2>&-; chmod o+w /opt/kernel && cd /opt/kernel;
@@ -70,7 +68,6 @@ then
   sudo cp -rv ./chroot.devel/opt/kernel/linux-image-* "./chroot/tmp/"
   sudo umount ./chroot.devel
   chroot_exec chroot "export DEBIAN_FRONTEND=noninteractive
-  aria2c(){ /usr/bin/aria2c --console-log-level=warn \"\$@\";}; export -f aria2c
   apt-fast -y install linux-firmware
   dpkg -i /tmp/linux-image-*
   apt-fast --yes -f install

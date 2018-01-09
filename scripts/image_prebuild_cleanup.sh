@@ -9,7 +9,7 @@ RECYCLEDIR="./recycle"
 statusprint "Pre-build cleanup.."
 
 statusprint "Removing packages which are not essential anymore.."
-if [ ${GLOBAL_RELEASESIZE} -eq 1 ]
+if [ ${GLOBAL_RELEASESIZE} -le 1 ]
 then
   chroot_exec chroot 'export DEBIAN_FRONTEND=noninteractive;
 aria2c(){ /usr/bin/aria2c --console-log-level=warn "$@";}; export -f aria2c;
@@ -33,10 +33,7 @@ apt-fast --yes purge deborphan'
 statusprint "Removing .pyc files cache.."
 sudo find chroot/usr/share/python* chroot/usr/lib/python* -iname "*.pyc" 2>&- | while read f; do sudo rm "$f" 2>&-; done 
 
-statusprint "Cleaning APT cache.."
-sudo rm -rf chroot/var/lib/apt/lists/*
-
-if [ ${GLOBAL_RELEASESIZE} -eq 1 ]
+if [ ${GLOBAL_RELEASESIZE} -le 1 ]
 then
   mkdir "$RECYCLEDIR" 2>&-
 

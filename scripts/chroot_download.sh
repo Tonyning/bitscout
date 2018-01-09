@@ -67,25 +67,27 @@ run_debootstrap_supervised_fast()
  
   BASEDIR="$PWD" &&
   statusprint "Building base root filesystem.." &&
-  DEBDIR="debootstrap.cache/dists/$BASERELEASE/main/binary-$BASEARCHITECTURE" &&
+  DEBDIR="cache/debootstrap.cache/dists/$BASERELEASE/main/binary-$BASEARCHITECTURE" &&
   mkdir -p "$DEBDIR" &&
 
   statusprint "Fetching the list of essential packages.." &&
   DEBS=$(sudo debootstrap --include=aria2,libc-ares2,libssh2-1,libxml2,ca-certificates,zlib1g,localepurge --print-debs --foreign --arch=$BASEARCHITECTURE $BASERELEASE chroot ) || exit 1 &&
   install_required_package aria2  &&
-
+ 
+  chroot_mount_cache "$PWD/chroot" &&
+  trap "chroot_unmount_fs \"$PWD/$DIR\"" SIGINT SIGKILL SIGTERM &&
   apt_make_dirs &&
   apt_update &&
    
   statusprint "Downloading deb files to local cache dir.." &&
-  ( cd "$DEBDIR" && apt_fast_download $DEBS ) &&
+  ( ( cd "$DEBDIR" && apt_fast_download $DEBS ) || echo "Failed to download deb files" ) &&
 
   statusprint "Scanning/indexing downloaded packages.." &&
   install_required_package dpkg-dev &&
-  ( cd "./debootstrap.cache" && dpkg-scanpackages . /dev/null > "dists/$BASERELEASE/main/binary-$BASEARCHITECTURE/Packages" 2>/dev/null ) &&
+  ( cd "./cache/debootstrap.cache" && dpkg-scanpackages . /dev/null > "dists/$BASERELEASE/main/binary-$BASEARCHITECTURE/Packages" 2>/dev/null ) &&
   sed -i 's/^Priority: optional.*/Priority: important/g' "$DEBDIR/Packages" &&
 
-  PKGS_SIZE=$(stat -c %s ./debootstrap.cache/dists/$BASERELEASE/main/binary-$BASEARCHITECTURE/Packages) &&
+  PKGS_SIZE=$(stat -c %s ./cache/debootstrap.cache/dists/$BASERELEASE/main/binary-$BASEARCHITECTURE/Packages) &&
   statusprint "Building local mirror requirements.." &&
 
   echo "Origin: Ubuntu
@@ -101,13 +103,10 @@ Description: Ubuntu Xenial 16.04
 MD5Sum:
 $(md5sum $DEBDIR/Packages | cut -d' ' -f1) $PKGS_SIZE main/binary-$BASEARCHITECTURE/Packages
 SHA256:
-$(sha256sum $DEBDIR/Packages | cut -d' ' -f1) $PKGS_SIZE main/binary-$BASEARCHITECTURE/Packages" > "./debootstrap.cache/dists/$BASERELEASE/Release" &&
-
-  statusprint "Saving current dpkg lists before debootstrap.." &&
-  sudo mv chroot/var/lib/apt/lists chroot/var/lib/apt/lists.bak &&
+$(sha256sum $DEBDIR/Packages | cut -d' ' -f1) $PKGS_SIZE main/binary-$BASEARCHITECTURE/Packages" > "./cache/debootstrap.cache/dists/$BASERELEASE/Release" &&
 
   statusprint "Building rootfs based on local deb cache.." &&
-  sudo debootstrap --no-check-gpg --foreign --arch=$BASEARCHITECTURE $BASERELEASE chroot "file:///$BASEDIR/debootstrap.cache" &&
+  sudo debootstrap --no-check-gpg --foreign --arch=$BASEARCHITECTURE $BASERELEASE chroot "file:///$BASEDIR/cache/debootstrap.cache" &&
 
   statusprint "Fixing keyboard-configuration GDM compatibility bug (divert kbd_mode).." &&
   TARGETDEB="./chroot$(grep "^kbd " chroot/debootstrap/debpaths | cut -d' ' -f2)" &&
@@ -120,20 +119,21 @@ $(sha256sum $DEBDIR/Packages | cut -d' ' -f1) $PKGS_SIZE main/binary-$BASEARCHIT
   sudo cp -v "${TARGETDEB}.unp/data/bin/kbd_mode" ./chroot/bin/kbd_mode.dist &&
   sudo cp -v chroot/bin/true "${TARGETDEB}.unp/data/bin/kbd_mode" &&
   sudo ./scripts/deb_pack.sh "$TARGETDEB" &&
-  
-  statusprint "Moving apt cache to external directory.." &&
-  ( [ ! -d "./apt.cache" ] && mkdir ./apt.cache; exit 0;) &&
-  sudo mv -t ./apt.cache ./chroot/var/cache/apt/archives/* &&
+
+  chroot_unmount_cache "$PWD/chroot" &&
+
+  statusprint "Backing up apt lists before deboostrap (stage 2).." &&
+  sudo cp -r cache/apt.lists/ cache/apt.lists.bak &&
 
   statusprint "Running debootstrap (stage 2).." &&
   chroot_exec chroot "/debootstrap/debootstrap --second-stage && apt-mark hold kbd" &&
 
-  statusprint "Restoring dpkg lists after debootstrap.." &&
-  sudo rm -rf chroot/var/lib/apt/lists &&
-  sudo mv chroot/var/lib/apt/lists.bak chroot/var/lib/apt/lists &&
-
-  statusprint "Restoring sources.list file.." &&
-  sudo cp chroot/etc/apt/sources.list.bak chroot/etc/apt/sources.list
+  statusprint "Restoring apt lists after debootstrap (stage 2).." &&
+  sudo rm -rf cache/apt.lists/ &&
+  sudo mv cache/apt.lists.bak cache/apt.lists && sudo chown 1000:1000 cache/apt.lists &&
+ 
+  statusprint "Restoring sources.list file after debootstrap (stage 2).." &&
+  sudo cp chroot/etc/apt/sources.list.bak chroot/etc/apt/sources.list &&
 
   statusprint "Adding apt-fast to chroot.." &&
   sudo cp -v ./resources/apt-fast/apt-fast ./chroot/usr/bin/apt-fast &&
@@ -148,8 +148,8 @@ then
 
   case $choice in
     1)
-      sudo rm -rf ./chroot/
-      install_required_package debootstrap
+      sudo rm -rf ./chroot/ &&
+      install_required_package debootstrap &&
       run_debootstrap_supervised_fast || exit 1
      ;;
     2)
@@ -161,7 +161,7 @@ then
      ;;
   esac
 else
-  install_required_package debootstrap
+  install_required_package debootstrap &&
   run_debootstrap_supervised_fast || exit 1
 fi
 
