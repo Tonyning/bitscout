@@ -13,7 +13,7 @@
 
 #welcome and initial settings:
 scripts/welcome.sh &&
-scripts/prepare_tools.sh
+scripts/submodules_fetch.sh &&
 
 #prepare rootfs directory:
 scripts/chroot_download.sh &&

@@ -74,14 +74,21 @@ chroot_exec()
   ln -s /bin/true /sbin/initctl 2>&-
   rm /tmp/chroot_session.sh
   $CMD
+  CMDRETURN=\$?
   rm /var/lib/dbus/machine-id 2>&-
   rm /sbin/initctl
-  dpkg-divert --rename --remove /sbin/initctl >/dev/null" > "./$DIR/tmp/chroot_session.sh"
+  dpkg-divert --rename --remove /sbin/initctl >/dev/null
+  exit \$CMDRETURN " > "./$DIR/tmp/chroot_session.sh"
 
   chmod +x "./$DIR/tmp/chroot_session.sh"
-  sudo chroot "$DIR" "/tmp/chroot_session.sh" &&
-  chroot_unmount_fs "$PWD/$DIR" &&
-  return 0
+  if sudo chroot "$DIR" "/tmp/chroot_session.sh"
+  then
+      statusprint "Info: command in chroot succeeded."
+    chroot_unmount_fs "$PWD/$DIR" && return 0
+  else
+    statusprint "Warning: command in chroot failed."
+    chroot_unmount_fs "$PWD/$DIR" && return 1
+  fi
 }
 
 unpackinitrd()
@@ -127,11 +134,14 @@ install_required_package()
         statusprint "Enabling additional repository ($REPOSITORY) for your system.."
         OSCODENAME=`lsb_release -c| awk '{print $2}'`
         sudo add-apt-repository "deb http://archive.ubuntu.com/ubuntu/ $OSCODENAME $REPOSITORY"
+
+        statusprint "Updating host system repository index.." 
         sudo apt -y update
       fi
     fi;
     if ! sudo apt -y install "$PKGNAME"; 
-    then 
+    then
+      statusprint "Updating host system repository index.." 
       sudo apt -y update
       if ! sudo apt -y install "$PKGNAME"; 
       then 
@@ -163,7 +173,7 @@ file_template_copy()
   DST="$2"
   statusprint "Copying template-based file: \"$1\" -> \"$2\""
   [ ! -d "${DST%/*}" ] && $SUDO mkdir -p "${DST%/*}"
-  sed "s/<PROJECTNAME>/${PROJECTNAME}/g;  s/<PROJECTCAPNAME>/${PROJECTCAPNAME}/g; s/<PROJECTSHORTNAME>/${PROJECTSHORTNAME}/g; s/<CONTAINERNAME>/${CONTAINERNAME}/g; s/<CONTAINERUSERNAME>/${CONTAINERUSERNAME}/g;" "$SRC" | $SUDO tee "$DST" >/dev/null
+  sed "s/<PROJECTNAME>/${PROJECTNAME}/g;  s/<PROJECTCAPNAME>/${PROJECTCAPNAME}/g; s/<PROJECTSHORTNAME>/${PROJECTSHORTNAME}/g; s/<CONTAINERNAME>/${CONTAINERNAME}/g; s/<CONTAINERUSERNAME>/${CONTAINERUSERNAME}/g; s/<BASERELEASE>/${BASERELEASE}/" "$SRC" | $SUDO tee "$DST" >/dev/null
 }
 
 sudo_file_template_copy()
