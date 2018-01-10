@@ -15,7 +15,7 @@
 
 ISONAME="${PROJECTNAME}-16.04.iso"
 TESTLOG="./autotest.log"
-VISIBLE=1 #show tmux interface during testing
+VISIBLE=0 #show tmux interface during testing
 
 if [ ! -f "./$ISONAME" ]
 then
