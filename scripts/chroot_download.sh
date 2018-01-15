@@ -22,8 +22,13 @@ apt_make_dirs()
   mkdir -p chroot/etc/apt/preferences.d/ &&
 
   statusprint "Creating sources.list file.." &&
-  file_template_copy resources/etc/apt/sources.list chroot/etc/apt/sources.list  &&
-
+  file_template_copy resources/etc/apt/sources.list.binary chroot/etc/apt/sources.list  &&
+  if [ $GLOBAL_CUSTOMKERNEL -eq 1 ]
+  then
+    file_template_copy resources/etc/apt/sources.list.source chroot/etc/apt/sources.list.src  &&
+    cat chroot/etc/apt/sources.list.src >> chroot/etc/apt/sources.list &&
+    rm chroot/etc/apt/sources.list.src
+  fi &&
   statusprint "Backing up sources.list file.." &&
   sudo cp chroot/etc/apt/sources.list chroot/etc/apt/sources.list.bak 
 }
@@ -43,7 +48,7 @@ apt_update()
   sudo cp chroot/etc/apt/trusted.gpg  chroot/usr/share/keyrings/ubuntu-archive-keyring.gpg &&
 
   statusprint "Updating $BASERELEASE:$BASEARCHITECTURE indexes for chroot.." &&
-  apt-get -y -o "Dir=$PWD/chroot" -o "APT::Architecture=$BASEARCHITECTURE" -o "Acquire::Languages=$LANG" update
+  sudo apt-get -y -o "Dir=$PWD/chroot" -o "APT::Architecture=$BASEARCHITECTURE" -o "Acquire::Languages=$LANG" update
 }
 
 apt_fast_download()
