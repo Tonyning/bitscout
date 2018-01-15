@@ -15,7 +15,7 @@
 
 ISONAME="${PROJECTNAME}-16.04.iso"
 TESTLOG="./autotest.log"
-VISIBLE=0 #show tmux interface during testing
+VISIBLE=0 #show tmux interface during testing. This should be set to 0 by default for better unattended auto-testing compatibility.
 
 if [ ! -f "./$ISONAME" ]
 then

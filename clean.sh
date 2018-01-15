@@ -14,4 +14,4 @@
 . ./scripts/functions
 
 statusprint "Removing all temporary files, except configuration.."
-sudo rm -rf ./chroot ./chroot.devel ./tmp ./image ./initrd ./recycle ./cache ./autotest.log ./bitscout.monitor.sock ./bitscout.serial.sock
+sudo rm -rf ./chroot ./chroot.devel ./tmp ./image ./initrd ./recycle ./cache ./autotest.log ./automake.log ./bitscout.monitor.sock ./bitscout.serial.sock

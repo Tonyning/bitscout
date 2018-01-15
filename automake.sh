@@ -12,6 +12,7 @@
 # Bitscout. If not, see <http://www.gnu.org/licenses/>.
 
 #welcome and initial settings:
+( 
 scripts/welcome.sh &&
 scripts/submodules_fetch.sh &&
 
@@ -49,5 +50,6 @@ scripts/image_prebuild_cleanup.sh &&
 scripts/image_build.sh &&
 
 #prepare exportable configs/certs/keys:
-scripts/export_generate.sh
+scripts/export_generate.sh 
+) 2>&1 | tee  ./automake.log
 

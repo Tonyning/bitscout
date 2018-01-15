@@ -7,6 +7,10 @@
 BUILDCONFPATH="config/${PROJECTNAME}-build.conf"
 
 statusprint "Welcome to $PROJECTNAME 2.0 builder!"
+HOSTUNAME=$(uname -a)
+HOSTDIST=$(lsb_release -a 2>&-)
+COMMIT=$(git log -1 2>&-|head -n1)
+statusprint "Host OS info:\n$HOSTUNAME\n$HOSTDIST\nUsing git $COMMIT"
 
 validate_vpnhostname()
 {
