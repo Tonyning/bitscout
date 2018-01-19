@@ -95,7 +95,18 @@ sleep 0.3
 
 dprint "Attaching to monitor socket.." #pane .1
 tmux split-window -v -t "$TMSESSION:$TMWINDOW" -p 90 "socat - ./${PROJECTNAME}.monitor.sock"
-sleep 0.1
+
+#sleep 0.1
+dprint "Waiting for serial port socket.."
+while true
+do 
+  if [ -S "./${PROJECTNAME}.serial.sock" ]
+  then
+    break
+  else
+    sleep 1
+  fi
+done
 
 dprint "Attaching to serial port socket.." #pane .2
 tmux split-window -h -t "$TMSESSION:$TMWINDOW" -p 90 "./resources/autotest/basic.exp; tmux send-keys -t:$TMWINDOW.1 \"system_powerdown\" && tmux send-keys -t:$TMWINDOW.1 \"enter\" && tmux send-keys -t:$TMWINDOW.1 \"quit\" && tmux send-keys -t:$TMWINDOW.1 \"enter\""
