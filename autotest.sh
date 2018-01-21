@@ -42,6 +42,22 @@ dprint "autotest: Started new autotest on $DATE"
 TMSESSION="$PROJECTNAME"
 TMWINDOW="qemu"
 
+waitfor_socket()
+{
+  SOCKETPATH="$1"
+  dprint "Waiting for socket at $SOCKETPATH .."
+  while true
+  do
+    if [ -S "$SOCKETPATH" ]
+    then
+      break
+    else
+      sleep 1
+    fi
+  done
+  return 0
+}
+
 vm_keyboard_pushkeys()
 {
  while read k;
@@ -83,6 +99,9 @@ then
   exit 0;
 fi
 
+[ -S "./${PROJECTNAME}.monitor.sock" ] && dprint "Removing existing monitor socket.."  && rm "./${PROJECTNAME}.monitor.sock"
+[ -S "./${PROJECTNAME}.serial.sock" ] && dprint "Removing existing serial socket.." && rm "./${PROJECTNAME}.serial.sock"
+
 dprint "Creating new local tmux session.." #pane .0
 if ! tmux new-session -d -n $TMWINDOW -s $TMSESSION "qemu-system-x86_64 -enable-kvm -name ${PROJECTNAME}-qemu -cpu host -m 256 -cdrom "./$ISONAME" -boot order=c -spice port=2001,disable-ticketing -serial unix:./${PROJECTNAME}.serial.sock,server -chardev socket,id=monitordev,server,path=./${PROJECTNAME}.monitor.sock -mon chardev=monitordev -S; tmux wait-for -S $TMSESSION"
 then
@@ -91,22 +110,15 @@ then
 else
   dprint "Started qemu in tmux session."
 fi
-sleep 0.3
+
+dprint "Waiting for qemu monitor socket.."
+waitfor_socket "./${PROJECTNAME}.monitor.sock"
 
 dprint "Attaching to monitor socket.." #pane .1
 tmux split-window -v -t "$TMSESSION:$TMWINDOW" -p 90 "socat - ./${PROJECTNAME}.monitor.sock"
 
-#sleep 0.1
 dprint "Waiting for serial port socket.."
-while true
-do 
-  if [ -S "./${PROJECTNAME}.serial.sock" ]
-  then
-    break
-  else
-    sleep 1
-  fi
-done
+waitfor_socket "./${PROJECTNAME}.serial.sock"
 
 dprint "Attaching to serial port socket.." #pane .2
 tmux split-window -h -t "$TMSESSION:$TMWINDOW" -p 90 "./resources/autotest/basic.exp; tmux send-keys -t:$TMWINDOW.1 \"system_powerdown\" && tmux send-keys -t:$TMWINDOW.1 \"enter\" && tmux send-keys -t:$TMWINDOW.1 \"quit\" && tmux send-keys -t:$TMWINDOW.1 \"enter\""
@@ -125,7 +137,6 @@ tmux send-keys -t:$TMWINDOW.1 "enter"
 dprint "To view the VM console use command:\n$ remote-viewer spice://localhost:2001"
 if [ $VISIBLE -eq 1 ]
 then
- #sleep 2
  dprint "Attaching to tmux session.."
  tmux attach -t $TMSESSION
 else
