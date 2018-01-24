@@ -31,7 +31,7 @@ statusprint()
 
 create_dir_safe()
 {
-  [ ! -d "$1" ] && mkdir -p "$1" 2>&-
+  [ ! -d "$1" ] && sudo mkdir -p "$1" 2>&-
   return 0
 }
 

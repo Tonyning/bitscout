@@ -16,18 +16,18 @@ fi
 apt_make_dirs()
 {
   statusprint "Creating directory structure.." &&
-  mkdir -p chroot/etc/apt &&
-  mkdir -p chroot/var/lib/dpkg &&
-  touch chroot/var/lib/dpkg/status &&
-  mkdir -p chroot/etc/apt/preferences.d/ &&
+  sudo mkdir -p chroot/etc/apt &&
+  sudo mkdir -p chroot/var/lib/dpkg &&
+  sudo touch chroot/var/lib/dpkg/status &&
+  sudo mkdir -p chroot/etc/apt/preferences.d/ &&
 
   statusprint "Creating sources.list file.." &&
-  file_template_copy resources/etc/apt/sources.list.binary chroot/etc/apt/sources.list  &&
+  sudo_file_template_copy resources/etc/apt/sources.list.binary chroot/etc/apt/sources.list  &&
   if [ $GLOBAL_CUSTOMKERNEL -eq 1 ]
   then
-    file_template_copy resources/etc/apt/sources.list.source chroot/etc/apt/sources.list.src  &&
-    cat chroot/etc/apt/sources.list.src >> chroot/etc/apt/sources.list &&
-    rm chroot/etc/apt/sources.list.src
+    sudo_file_template_copy resources/etc/apt/sources.list.source chroot/etc/apt/sources.list.src  &&
+    cat chroot/etc/apt/sources.list.src | sudo tee -a chroot/etc/apt/sources.list >/dev/null &&
+    sudo rm chroot/etc/apt/sources.list.src
   fi &&
   statusprint "Backing up sources.list file.." &&
   sudo cp chroot/etc/apt/sources.list chroot/etc/apt/sources.list.bak 
@@ -37,10 +37,10 @@ apt_update()
 {
   statusprint "Downloading PGP keys.." &&
   KEYS=( 40976EAF437D05B5 3B4FE6ACC0B21F32 ) &&
-  mkdir -p chroot/etc/apt &&
+  sudo mkdir -p chroot/etc/apt &&
   for KEY in ${KEYS[*]} 
   do
-    apt-key --keyring chroot/etc/apt/trusted.gpg adv --recv-keys --keyserver keyserver.ubuntu.com $KEY
+    sudo apt-key --keyring chroot/etc/apt/trusted.gpg adv --recv-keys --keyserver keyserver.ubuntu.com $KEY
   done &&
 
   statusprint "Saving PGP key to system-wide keyring.." &&
@@ -62,7 +62,7 @@ apt_fast_download()
   _SPLITCON=8 &&
   _MINSPLITSZ="1M" &&
   _PIECEALGO="default" &&
-  aria2c --console-log-level=warn -c -j ${_MAXNUM} -x ${_MAXCONPERSRV} -s ${_SPLITCON} -i ${DLLIST} --min-split-size=${_MINSPLITSZ} --stream-piece-selector=${_PIECEALGO} --connect-timeout=600 --timeout=600 -m0 &&
+  sudo aria2c --console-log-level=warn -c -j ${_MAXNUM} -x ${_MAXCONPERSRV} -s ${_SPLITCON} -i ${DLLIST} --min-split-size=${_MINSPLITSZ} --stream-piece-selector=${_PIECEALGO} --connect-timeout=600 --timeout=600 -m0 &&
   rm "$DLLIST"
 }
 
@@ -73,7 +73,7 @@ run_debootstrap_supervised_fast()
   BASEDIR="$PWD" &&
   statusprint "Building base root filesystem.." &&
   DEBDIR="cache/debootstrap.cache/dists/$BASERELEASE/main/binary-$BASEARCHITECTURE" &&
-  mkdir -p "$DEBDIR" &&
+  sudo mkdir -p "$DEBDIR" &&
 
   statusprint "Fetching the list of essential packages.." &&
   DEBS=$(sudo debootstrap --include=aria2,libc-ares2,libssh2-1,libxml2,ca-certificates,zlib1g,localepurge --print-debs --foreign --arch=$BASEARCHITECTURE $BASERELEASE chroot ) || exit 1 &&
@@ -135,7 +135,7 @@ $(sha256sum $DEBDIR/Packages | cut -d' ' -f1) $PKGS_SIZE main/binary-$BASEARCHIT
 
   statusprint "Restoring apt lists after debootstrap (stage 2).." &&
   sudo rm -rf cache/apt.lists/ &&
-  sudo mv cache/apt.lists.bak cache/apt.lists && sudo chown 1000:1000 cache/apt.lists &&
+  sudo mv cache/apt.lists.bak cache/apt.lists &&
  
   statusprint "Restoring sources.list file after debootstrap (stage 2).." &&
   sudo cp chroot/etc/apt/sources.list.bak chroot/etc/apt/sources.list &&
