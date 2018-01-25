@@ -73,7 +73,7 @@ run_debootstrap_supervised_fast()
   BASEDIR="$PWD" &&
   statusprint "Building base root filesystem.." &&
   DEBDIR="cache/debootstrap.cache/dists/$BASERELEASE/main/binary-$BASEARCHITECTURE" &&
-  sudo mkdir -p "$DEBDIR" &&
+  mkdir -p "$DEBDIR" &&
 
   statusprint "Fetching the list of essential packages.." &&
   DEBS=$(sudo debootstrap --include=aria2,libc-ares2,libssh2-1,libxml2,ca-certificates,zlib1g,localepurge --print-debs --foreign --arch=$BASEARCHITECTURE $BASERELEASE chroot ) || exit 1 &&
